@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crufts Group Performance</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #e6f2ff;
+        }
+        svg {
+            margin-top: 20px;
+        }
+        .bar {
+            fill: goldenrod;
+        }
+        .bar2 {
+            fill: gray;
+        }
+        .axis-label {
+            font-size: 14px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Group Performance at Crufts (20 Year Analysis)</h1>
+    <svg width="700" height="450"></svg>
+
+    <script>
+        const data = [
+            { group: "Terrier", bis: 5, rbis: 6 },
+            { group: "Hound", bis: 5, rbis: 3 },
+            { group: "Utility", bis: 5, rbis: 3 },
+            { group: "Toy", bis: 3, rbis: 4 },
+            { group: "Gundog", bis: 3, rbis: 5 }
+        ];
+
+        const svg = d3.select("svg"),
+              margin = { top: 40, right: 30, bottom: 80, left: 50 },
+              width = +svg.attr("width") - margin.left - margin.right,
+              height = +svg.attr("height") - margin.top - margin.bottom,
+              g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x0 = d3.scaleBand()
+            .domain(data.map(d => d.group))
+            .rangeRound([0, width])
+            .padding(0.2);
+
+        const x1 = d3.scaleBand()
+            .domain(["bis", "rbis"])
+            .rangeRound([0, x0.bandwidth()])
+            .padding(0.05);
+
+        const y = d3.scaleLinear()
+            .domain([0, d3.max(data, d => Math.max(d.bis, d.rbis))])
+            .nice()
+            .range([height, 0]);
+
+        g.append("g")
+            .selectAll("g")
+            .data(data)
+            .enter().append("g")
+            .attr("transform", d => `translate(${x0(d.group)},0)`)
+            .selectAll("rect")
+            .data(d => [
+                { key: "bis", value: d.bis, class: "bar" },
+                { key: "rbis", value: d.rbis, class: "bar2" }
+            ])
+            .enter().append("rect")
+            .attr("class", d => d.class)
+            .attr("x", d => x1(d.key))
+            .attr("width", x1.bandwidth())
+            .attr("y", height)
+            .attr("height", 0)
+            .transition()
+            .duration(1000)
+            .attr("y", d => y(d.value))
+            .attr("height", d => height - y(d.value));
+
+        g.append("g")
+            .attr("class", "axis")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x0))
+            .selectAll("text")
+            .style("text-anchor", "end")
+            .attr("dx", "-0.8em")
+            .attr("dy", "0.15em")
+            .attr("transform", "rotate(-25)");
+
+        g.append("g")
+            .attr("class", "axis")
+            .call(d3.axisLeft(y).ticks(8));
+
+        svg.append("text")
+            .attr("x", width / 2 + margin.left)
+            .attr("y", height + margin.top + 40)
+            .attr("text-anchor", "middle")
+            .attr("class", "axis-label")
+            .text("Groups");
+
+        svg.append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("x", -height / 2 - margin.top)
+            .attr("y", margin.left / 2)
+            .attr("text-anchor", "middle")
+            .attr("class", "axis-label")
+            .text("Number of Awards");
+
+        const legend = svg.append("g")
+            .attr("transform", `translate(${width - 150},30)`);
+
+        legend.append("rect").attr("x", 0).attr("y", 0).attr("width", 15).attr("height", 15).attr("fill", "goldenrod");
+        legend.append("text").attr("x", 20).attr("y", 12).text("Best in Show");
+        legend.append("rect").attr("x", 0).attr("y", 20).attr("width", 15).attr("height", 15).attr("fill", "gray");
+        legend.append("text").attr("x", 20).attr("y", 32).text("Reserve Best in Show");
+    </script>
+</body>
+</html>
