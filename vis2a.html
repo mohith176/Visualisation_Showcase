@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sunburst: Groups & Breeds with Points</title>
+  <style>
+    .arc {
+      stroke: #fff;
+      stroke-width: 1px;
+    }
+    .tooltip {
+      position: absolute;
+      text-align: center;
+      padding: 8px;
+      font: 14px sans-serif;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      pointer-events: none;
+      opacity: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .group-label {
+      font-weight: 500;
+      fill: #333;
+    }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <h2>Sunburst: Groups & TOP 5 Breeds with Points</h2>
+  <div id="chart"></div>
+  <div class="tooltip" id="tooltip"></div>
+  
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <script>
+    const data = {
+      "name": "Dogs",
+      "children": [
+        { "name": "Gundog", "children": [
+             {"name": "Retriever (Flat Coated)", "points": 16},
+             {"name": "Irish Setter", "points": 12},
+             {"name": "Spaniel (American Cocker)", "points": 10},
+             {"name": "Lagotto Romagnolo", "points": 9},
+             {"name": "Gordon Setter", "points": 8}
+        ]},
+        { "name": "Hound", "children": [
+             {"name": "Whippet", "points": 21},
+             {"name": "Irish Wolfhound", "points": 13},
+             {"name": "Basset Griffon Vendeen (Grand)", "points": 12},
+             {"name": "Dachshund (Wire-Haired)", "points": 9},
+             {"name": "Rhodesian Ridgeback", "points": 8}
+        ]},
+        { "name": "Pastoral", "children": [
+             {"name": "Border Collie", "points": 17},
+             {"name": "Old English Sheepdog", "points": 14},
+             {"name": "Samoyed", "points": 13},
+             {"name": "Pyrenean Mountain Dog", "points": 9},
+             {"name": "Australian Shepherd", "points": 8}
+        ]},
+        { "name": "Terrier", "children": [
+             {"name": "Scottish Terrier", "points": 14},
+             {"name": "Jack Russell Terrier", "points": 13},
+             {"name": "Fox Terrier (Wire)", "points": 11},
+             {"name": "Irish Terrier", "points": 11},
+             {"name": "Lakeland Terrier", "points": 10}
+        ]},
+        { "name": "Toy", "children": [
+             {"name": "Pomeranian", "points": 15},
+             {"name": "Yorkshire Terrier", "points": 15},
+             {"name": "Papillon", "points": 13},
+             {"name": "Chihuahua (Long Coat)", "points": 10},
+             {"name": "Bichon Frise", "points": 9}
+        ]},
+        { "name": "Utility", "children": [
+             {"name": "Poodle (Standard)", "points": 16},
+             {"name": "Poodle (Miniature)", "points": 15},
+             {"name": "Akita", "points": 13},
+             {"name": "Poodle (Toy)", "points": 10},
+             {"name": "Japanese Shiba Inu", "points": 7}
+        ]},
+        { "name": "Working", "children": [
+             {"name": "Alaskan Malamute", "points": 13},
+             {"name": "Newfoundland", "points": 13},
+             {"name": "Dobermann", "points": 10},
+             {"name": "Leonberger", "points": 10},
+             {"name": "Bullmastiff", "points": 9}
+        ]}
+      ]
+    };
+
+    const width = 670,
+          height = 670,
+          outerRadius = Math.min(width, height) / 2 - 60;
+
+    const groups = data.children;
+
+    groups.forEach(g => {
+      g.children.sort((a, b) => b.points - a.points);
+      g.totalPoints = d3.sum(g.children, d => d.points);
+    });
+
+    const maxTotalPoints = d3.max(groups, g => g.totalPoints);
+    const pointScale = d3.scaleLinear()
+                         .domain([0, maxTotalPoints])
+                         .range([0, outerRadius]);
+
+    const numGroups = groups.length;
+    const anglePerGroup = 2 * Math.PI / numGroups;
+
+    const svg = d3.select("#chart")
+                  .append("svg")
+                  .attr("width", width)
+                  .attr("height", height)
+                  .append("g")
+                  .attr("transform", `translate(${width/2},${height/2})`);
+
+    const tooltip = d3.select("#tooltip");
+
+    const groupColor = d3.scaleOrdinal()
+                         .domain(groups.map(d => d.name))
+                         .range(d3.schemeCategory10);
+
+    groups.forEach((group, i) => {
+      const startAngle = i * anglePerGroup;
+      const endAngle = startAngle + anglePerGroup;
+      
+      let currentRadius = 0;
+      group.children.forEach((breed, j) => {
+        const thickness = pointScale(breed.points);
+        
+        const arcGen = d3.arc()
+                         .innerRadius(currentRadius)
+                         .outerRadius(currentRadius + thickness)
+                         .startAngle(startAngle)
+                         .endAngle(endAngle);
+        
+        let base = d3.color(groupColor(group.name));
+        const breedColor = base.brighter(j * 0.5);
+        
+        svg.append("path")
+           .attr("class", "arc")
+           .attr("d", arcGen)
+           .attr("fill", breedColor)
+           .on("mouseover", (event) => {
+              tooltip.style("opacity", 1)
+                     .html(`<strong>${breed.name}</strong><br/>Points: ${breed.points}`)
+                     .style("left", (event.pageX + 10) + "px")
+                     .style("top", (event.pageY - 25) + "px");
+           })
+           .on("mousemove", (event) => {
+              tooltip.style("left", (event.pageX + 10) + "px")
+                     .style("top", (event.pageY - 25) + "px");
+           })
+           .on("mouseout", () => {
+              tooltip.style("opacity", 0);
+           });
+        
+        currentRadius += thickness;
+      });
+      
+      const midAngle = startAngle + anglePerGroup / 2;
+      const midRadius = pointScale(group.totalPoints) / 2;
+      
+      // Improved label positioning
+      const labelRadius = outerRadius + 20; // Position labels outside the chart
+      const x = labelRadius * Math.cos(midAngle - Math.PI / 2);
+      const y = labelRadius * Math.sin(midAngle - Math.PI / 2);
+      
+      // Add a small circle at the end of each group section
+      svg.append("circle")
+         .attr("cx", x)
+         .attr("cy", y)
+         .attr("r", 2)
+         .attr("fill", groupColor(group.name));
+
+      // Add the text label with improved positioning and rotation
+      const label = svg.append("text")
+         .attr("class", "group-label")
+         .attr("x", x)
+         .attr("y", y)
+         .attr("dy", "0.35em")
+         .style("font-size", "14px");
+
+      // Adjust text-anchor based on position in the circle
+      if (Math.cos(midAngle - Math.PI / 2) > 0) {
+        label.attr("text-anchor", "start")
+             .attr("dx", "0.5em");
+      } else {
+        label.attr("text-anchor", "end")
+             .attr("dx", "-0.5em");
+      }
+
+      label.text(group.name);
+    });
+  </script>
+</body>
+</html>
